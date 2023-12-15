@@ -3,41 +3,100 @@
 #string constants
 readonly info_symbol="[+]"
 readonly error_symbol="[-]"
+declare -A summary=([files_transferred]=0 [folders_created]=0)
+declare -A files_per_folder
+declare src_dir
+declare dst_dir
+declare excluded_extensions="-name '*.*'"
+declare delete_source_dir=false
+while getopts 'rs:d:e:' OPTION; do
+    case "$OPTION" in
+    s)
+        src_dir="$OPTARG"
+        ;;
+    d)
+        dst_dir="$OPTARG"
+        ;;
+    r)
+        delete_source_dir=true
+        ;;
+    e)
+        excluded_extensions="$OPTARG"
+        ;;
+    ?)
+        echo "script usage: $(basename \ $0) -r -s src_dir -d dst_dir -e \"excluded extensions\"" >&2
+        exit 1
+        ;;
+    esac
+done
+shift "$(($OPTIND - 1))"
 function INFO(){
-    echo $info_symbol $1
+    echo "$info_symbol" "$1"
 }
 function ERROR(){
-    echo $error_symbol $1
+    echo "$error_symbol" "$1"
 }
 function create_dir(){
-    dir=$(mkdir $1)
+    dir=$(mkdir "$1")
 }
 
-if [ -z $1 -o -z $2 ]; then
-    ERROR "Folder names cannot be empty!!"
-    exit -1
-fi
-
-if [ ! -d $1 ]; then
+if [ ! -d "$src_dir" ]; then
     ERROR "Source directory does not exist"
-    INFO "Creating source directory $1"
-    create_dir $1
+    INFO "Creating source directory $src_dir"
+    create_dir "$src_dir"
 fi
-if [ ! -d $2 ]; then
+if [ ! -d "$dst_dir" ]; then
     ERROR "Destination directory does not exist"
-    INFO "Creating destination directory $2"
-    create_dir $2
+    INFO "Creating destination directory $dst_dir"
+    create_dir "$dst_dir"
 fi
-file_paths=$(find $1 -type f -exec echo "{}" \;)
-
-INFO "Copying files from $1 to $2"
+extensions="$excluded_extensions"
+if [ ! "$excluded_extensions" == "-name '*.*'"  ]; then
+    extension=( -not \( )
+    for ext in $excluded_extensions; do
+        extension+=( -name \*."$ext" -o )
+    done
+    unset 'extension[-1]'
+    extension+=( \) )
+fi
+# echo "find "$src_dir" -type f $extension_string -exec echo "{}" \;"
+#-not \( -name '*.sh' -o -name '*.doc' \)
+file_paths=$(find "$src_dir" -type f "${extension[@]}" -exec echo "{}" \;)
+INFO "Copying files from $src_dir to $dst_dir"
 #create extension-wise directories and copy into them
-for file in $file_paths; do
-    filename=$(basename "$file")
-    extension_folder="${filename##*.}"
-    if [ ! -d "$2/$extension_folder" ]; then
-        create_dir "$2/$extension_folder"
+for file_path in $file_paths; do
+    filename=$(basename "$file_path")
+    extension="${filename##*.}"
+    destination_path="$dst_dir/$extension"
+    if [ ! -d "$destination_path" ]; then
+        create_dir "$destination_path"
+        ((summary[folders_created]++))
     fi
-    res=$(cp $file $2/$extension_folder)
+    if [ -f "$destination_path/$filename" ]; then
+        name="${filename%.*}"
+        ((files_per_folder[$extension]++))
+        res=$(cp "$file_path" "$destination_path/$name(${files_per_folder[$extension]}).$extension")
+        ((summary[files_transferred]++))
+        continue
+    fi
+    res=$(cp "$file_path" "$destination_path")
+    ((files_per_folder[$extension]++))
+    ((summary[files_transferred]++))
 done
+if [ "$delete_source_dir" == true ]; then
+    INFO "Deleting files from $src_dir..."
+    $(rm -rf "$src_dir")
+fi
 INFO "Reorgnisation complete"
+echo -e "\n--------Summary--------\n"
+INFO "Folders created : ${summary[folders_created]}"
+INFO "Files transferred : ${summary[files_transferred]}"
+INFO "Files per folder:"
+echo -e "\n+----------------------------+"
+printf "|%-1sFolder Name%-1s|%1sNo of files%-2s|\n"
+echo "+----------------------------+"
+for key in "${!files_per_folder[@]}"; do
+    printf "| %-11s | %-12s |" "$key" "${files_per_folder[$key]}"
+    printf "\n"
+done
+echo "+----------------------------+"
