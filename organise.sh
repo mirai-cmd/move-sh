@@ -9,13 +9,17 @@ declare src_dir
 declare dst_dir
 declare excluded_extensions="-name '*.*'"
 declare delete_source_dir=false
-while getopts 'rs:d:e:' OPTION; do
+declare log_file
+while getopts 'rs:d:e:l:' OPTION; do
     case "$OPTION" in
     s)
         src_dir="$OPTARG"
         ;;
     d)
         dst_dir="$OPTARG"
+        ;;
+    l)
+        log_file="$OPTARG"
         ;;
     r)
         delete_source_dir=true
@@ -30,13 +34,13 @@ while getopts 'rs:d:e:' OPTION; do
     esac
 done
 shift "$(($OPTIND - 1))"
-function INFO(){
+function INFO() {
     echo "$info_symbol" "$1"
 }
-function ERROR(){
+function ERROR() {
     echo "$error_symbol" "$1"
 }
-function create_dir(){
+function create_dir() {
     dir=$(mkdir "$1")
 }
 
@@ -50,18 +54,27 @@ if [ ! -d "$dst_dir" ]; then
     INFO "Creating destination directory $dst_dir"
     create_dir "$dst_dir"
 fi
+current_log_file="$log_file"
+if [ -z "$log_file" ]; then
+    if [ -f "$current_log_file" ]; then
+        ERROR "File $log_file already exists, generating log file as file_transfer.log in $PWD"
+    fi
+    current_log_file="file_transfer.log"
+    $(touch "$current_log_file")
+fi
 extensions="$excluded_extensions"
-if [ ! "$excluded_extensions" == "-name '*.*'"  ]; then
-    extension=( -not \( )
+if [ ! "$excluded_extensions" == "-name '*.*'" ]; then
+    extension=(-not \()
     for ext in $excluded_extensions; do
-        extension+=( -name \*."$ext" -o )
+        extension+=(-name \*."$ext" -o)
     done
     unset 'extension[-1]'
-    extension+=( \) )
+    extension+=(\))
 fi
 # echo "find "$src_dir" -type f $extension_string -exec echo "{}" \;"
 #-not \( -name '*.sh' -o -name '*.doc' \)
 file_paths=$(find "$src_dir" -type f "${extension[@]}" -exec echo "{}" \;)
+
 INFO "Copying files from $src_dir to $dst_dir"
 #create extension-wise directories and copy into them
 for file_path in $file_paths; do
@@ -82,12 +95,14 @@ for file_path in $file_paths; do
     res=$(cp "$file_path" "$destination_path")
     ((files_per_folder[$extension]++))
     ((summary[files_transferred]++))
+    printf "[ $(date) ][INFO] Copied $file_path%-10s---> $destination_path\n" >>"$current_log_file"
 done
 if [ "$delete_source_dir" == true ]; then
     INFO "Deleting files from $src_dir..."
     $(rm -rf "$src_dir")
 fi
 INFO "Reorgnisation complete"
+INFO "Check $current_log_file for more details" 
 echo -e "\n--------Summary--------\n"
 INFO "Folders created : ${summary[folders_created]}"
 INFO "Files transferred : ${summary[files_transferred]}"
