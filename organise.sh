@@ -95,7 +95,7 @@ for file_path in $file_paths; do
     res=$(cp "$file_path" "$destination_path")
     ((files_per_folder[$extension]++))
     ((summary[files_transferred]++))
-    printf "[ $(date) ][INFO] Copied $file_path%-10s---> $destination_path\n" >>"$current_log_file"
+    printf "[ $(date) ][INFO] Copied %-60s\t--->\t%-60s\n" "$file_path" "$destination_path" >>"$current_log_file"
 done
 if [ "$delete_source_dir" == true ]; then
     INFO "Deleting files from $src_dir..."
