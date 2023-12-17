@@ -19,8 +19,10 @@ sudo apt install figlet
 ```
 # Options
 
-| `-e "extensions"` |  Exclude file extensions. Enter a string of space-separated of extensions. Ex : "txt sh"|
-| `-l` [file_name] | Generate log file with name [file_name]"
-| `-r` | Recursively delete source directory."
-| `-h` | Print this Help."
-| `-V` | Print software version and exit."
+|  Option         	|  Description                                                                                	|
+|-----------------	|---------------------------------------------------------------------------------------------	|
+| -e "extensions" 	|  Exclude file extensions. Enter a string of space-separated extension names. Ex : "txt doc" 	|
+| -l [file_name]  	|  Generate log with file name [file_name]                                                    	|
+| -r              	| Recursively delete the source directory                                                     	|
+| -h              	| Print help menu                                                                             	|
+| -V              	| Print script version and exit                                                               	|
