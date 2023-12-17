@@ -1,7 +1,6 @@
 #!/bin/env bash
 
 #string constants
-#use cowsay I like to Sh-move it Sh-move it
 script_name="Sh-move.it"
 readonly version="$script_name v1.0.0"
 readonly info_symbol="[+]"
@@ -26,6 +25,14 @@ function show_help() {
     printf " -h%-15s Print this Help.\n"
     printf " -V%-15s Print software version and exit.\n"
 }
+function moo(){
+    cowsay -e oO "$1"
+}
+function arg_err(){
+    moo "Use $(basename $1) -h for help" >&2
+    echo -e "\n\nNo files to munch on...."
+    exit 1
+}
 while getopts 'Vhrs:d:e:l:' OPTION; do
     case "$OPTION" in
     s)
@@ -45,7 +52,7 @@ while getopts 'Vhrs:d:e:l:' OPTION; do
         excluded_extensions="$OPTARG"
         ;;
     h)
-        show_help
+        show_help "$0"
         exit 0
         ;;
     V)
@@ -53,14 +60,27 @@ while getopts 'Vhrs:d:e:l:' OPTION; do
         exit 0
         ;;
     ?)
-        echo "Use $(basename $0) -h for help" >&2
-        exit 1
+        
         ;;
     esac
 done
 shift "$(($OPTIND - 1))"
 
+
+if [ -z "$OPTION" ]; then
+    arg_err "$0"
+fi
 figlet "$script_name" -k
+
+printf "\n\n"
+printf "
+      ╔════════════════════════════════════════════════════════════╗
+   <==|          By        : Prajwal Ghotage                       |==>
+   <==|          Github    : https://github.com/mirai-cmd          |==>
+      ╚════════════════════════════════════════════════════════════╝
+
+           "
+printf "\n"
 
 function INFO() {
     echo "$info_symbol" "$1"
@@ -102,12 +122,12 @@ if [ ! "$excluded_extensions" == "-name '*.*'" ]; then
     unset 'extension[-1]'
     extension+=(\))
 fi
-# echo "find "$src_dir" -type f $extension_string -exec echo "{}" \;"
-#-not \( -name '*.sh' -o -name '*.doc' \)
+
 file_paths=$(find "$src_dir" -type f "${extension[@]}" -exec echo "{}" \;)
 
 INFO "Copying files from $src_dir to $dst_dir"
-#create extension-wise directories and copy into them
+
+#create extension-wise directories and copy into them and handle duplicates
 for file_path in $file_paths; do
     filename=$(basename "$file_path")
     extension="${filename##*.}"
@@ -154,4 +174,4 @@ for key in "${!files_per_folder[@]}"; do
     printf "\n"
 done
 echo "+----------------------------+"
-cowsay -e oO "I like to sh-move it sh-move it (pun intended)"
+moo "I like to sh-move it sh-move it (pun intended)"
