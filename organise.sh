@@ -1,6 +1,7 @@
 #!/bin/env bash
 
 #string constants
+#use cowsay I like to Sh-move it Sh-move it
 script_name="Sh-move.it"
 readonly version="$script_name v1.0.0"
 readonly info_symbol="[+]"
@@ -35,6 +36,7 @@ while getopts 'Vhrs:d:e:l:' OPTION; do
         ;;
     l)
         log_file="$OPTARG"
+        log_needed=true
         ;;
     r)
         delete_source_dir=true
@@ -60,7 +62,6 @@ shift "$(($OPTIND - 1))"
 
 figlet "$script_name" -k
 
-#Helper Functions
 function INFO() {
     echo "$info_symbol" "$1"
 }
@@ -69,6 +70,9 @@ function ERROR() {
 }
 function create_dir() {
     dir=$(mkdir "$1")
+}
+function write_to_log_file(){
+    printf "[ $(date) ][INFO] Copied %-60s\t--->\t%-60s\n" "$1" "$2" >>"$current_log_file"
 }
 
 if [ ! -d "$src_dir" ]; then
@@ -82,7 +86,7 @@ if [ ! -d "$dst_dir" ]; then
     create_dir "$dst_dir"
 fi
 current_log_file="$log_file"
-if [ -z "$log_file" ]; then
+if [ "$log_needed" ]; then
     if [ -f "$current_log_file" ]; then
         ERROR "File $log_file already exists, generating log file as file_transfer.log in $PWD"
     fi
@@ -98,12 +102,12 @@ if [ ! "$excluded_extensions" == "-name '*.*'" ]; then
     unset 'extension[-1]'
     extension+=(\))
 fi
-
+# echo "find "$src_dir" -type f $extension_string -exec echo "{}" \;"
+#-not \( -name '*.sh' -o -name '*.doc' \)
 file_paths=$(find "$src_dir" -type f "${extension[@]}" -exec echo "{}" \;)
 
 INFO "Copying files from $src_dir to $dst_dir"
-
-#create extension-wise directories and copy into them, and handle duplicate file_names
+#create extension-wise directories and copy into them
 for file_path in $file_paths; do
     filename=$(basename "$file_path")
     extension="${filename##*.}"
@@ -117,24 +121,27 @@ for file_path in $file_paths; do
         ((files_per_folder[$extension]++))
         res=$(cp "$file_path" "$destination_path/$name(${files_per_folder[$extension]}).$extension")
         ((summary[files_transferred]++))
-        printf "[ $(date) ][INFO] Copied %-60s\t--->\t%-60s\n" "$file_path" "$destination_path" >>"$current_log_file"
+        if [ "$log_needed" ]; then
+            write_to_log_file "$file_path" "$destination_path"
+        fi
         continue
     fi
     res=$(cp "$file_path" "$destination_path")
     ((files_per_folder[$extension]++))
     ((summary[files_transferred]++))
-    printf "[ $(date) ][INFO] Copied %-60s\t--->\t%-60s\n" "$file_path" "$destination_path" >>"$current_log_file"
+    if [ "$log_needed" ]; then
+        write_to_log_file "$file_path" "$destination_path"
+    fi
 done
-
-#Delete source drectory
-if [ "$dlete_source_dir" == true ]; then
+if [ "$delete_source_dir" == true ]; then
     INFO "Deleting files from $src_dir..."
     $(rm -rf "$src_dir")
 fi
-
-#Summary
 INFO "Reorgnisation complete"
-INFO "Check $current_log_file for more details"
+
+if [ "$log_needed" ]; then
+    INFO "Check $current_log_file for more details"
+fi
 echo -e "\n--------Summary--------\n"
 INFO "Folders created : ${summary[folders_created]}"
 INFO "Files transferred : ${summary[files_transferred]}"
